@@ -1,9 +1,14 @@
+import os
+basedir = os.path.abspath(os.path.dirname(__file__))
+
+
 class BaseConfig(object):
     """Holds default configuration options."""
 
     DEBUG = False
     TESTING = False
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///bucketlist.db'
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + \
+        os.path.join(basedir, 'bucketlist.db')
 
 
 class DevelopmentConfig(BaseConfig):
@@ -11,7 +16,8 @@ class DevelopmentConfig(BaseConfig):
 
     DEBUG = True
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///bucketlist.db'
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + \
+        os.path.join(basedir, 'bucketlist.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 
@@ -20,7 +26,7 @@ class TestingConfig(BaseConfig):
 
     DEBUG = True
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///memory'
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///models/memory'
 
 
 class ProductionConfig(BaseConfig):
@@ -28,7 +34,7 @@ class ProductionConfig(BaseConfig):
 
     DEBUG = False
     TESTING = False
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///bucketlist.db'
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///models/bucketlist.db'
 
 config = {
     'development': DevelopmentConfig,
