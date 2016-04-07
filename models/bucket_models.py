@@ -1,18 +1,28 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask.ext.restless import APIManager
+from config.config import DevelopmentConfig
+from flask_script import Manager
+from flask_migrate import Migrate, MigrateCommand
+import datetime
 
 # creates the flask app
 app = Flask(__name__)
 
 # configures the app
-app.config.from_pyfile('config.cfg')
+# app.config.from_pyfile('config.cfg')
+app.config.from_object(DevelopmentConfig)
+
 
 # creates the database instance object
 db = SQLAlchemy(app)
 
+migrate = Migrate(app, db)
+migrate_manager = Manager(app)
+migrate_manager.add_command('db', MigrateCommand)
 
-class BucketList(db.Model):
+
+class BucketLists(db.Model):
     """
     BucketList model class
     Attributes:
@@ -29,16 +39,16 @@ class BucketList(db.Model):
     """
 
     # sets a predefined tablename
-    __tablename__ = "bucketlist"
+    __tablename__ = "bucketlists"
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(20), nullable=False)
-    created_by = db.Column(db.String(), db.ForeignKey('users.id'))
-    date_created = db.Column(db.DateTime)
-    date_modified = db.Column(db.DateTime)
+    created_by = db.Column(db.String(), db.ForeignKey('auth.id'))
+    date_created = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    date_modified = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
     items = db.relationship(
-        'BucketListItems', backref='bucket', lazy='dynamic')
+        'Items', backref='bucket', lazy='dynamic')
 
     def __init__(self, name, created_by):
         """
@@ -62,7 +72,7 @@ class BucketList(db.Model):
         return '<Name %r>' % self.name
 
 
-class BucketListItems(db.Model):
+class Items(db.Model):
     """
     BucketListItems model class
     Attributes:
@@ -79,14 +89,14 @@ class BucketListItems(db.Model):
     """
 
     # sets a predefined tablename
-    __tablename__ = "bucketlistitems"
+    __tablename__ = "items"
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(), nullable=False)
     date_created = db.Column(db.DateTime)
     date_modified = db.Column(db.DateTime)
     done = db.Column(db.Boolean)
-    bid = db.Column(db.Integer, db.ForeignKey('bucketlist.id'))
+    bid = db.Column(db.Integer, db.ForeignKey('bucketlists.id'))
 
     def __init__(self, name, done):
         """
@@ -110,9 +120,9 @@ class BucketListItems(db.Model):
         return '<Name %r>' % self.name
 
 
-class Users(db.Model):
+class Auth(db.Model):
     """
-    Users model class
+    Auth model class
     Attributes:
         id: The id of the user.
         name: The name of the user.
@@ -123,7 +133,7 @@ class Users(db.Model):
     """
 
     # sets a predefined tablename
-    __tablename__ = "users"
+    __tablename__ = "auth"
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(20))
@@ -149,9 +159,8 @@ class Users(db.Model):
 
 manager = APIManager(app, flask_sqlalchemy_db=db)
 
-manager.create_api(BucketList, methods=['GET', 'POST', 'DELETE', 'PUT'])
-manager.create_api(BucketListItems, methods=['POST', 'DELETE', 'PUT'])
-manager.create_api(Users, methods=['GET'])
-
-if __name__ == "__main__":
-    app.run(debug=True)
+manager.create_api(
+    BucketLists, methods=['GET', 'POST', 'DELETE', 'PUT'], url_prefix='/v1')
+manager.create_api(
+    Items, methods=['POST', 'DELETE', 'PUT'], url_prefix='/v1')
+manager.create_api(Auth, methods=['GET'], url_prefix='/v1')
