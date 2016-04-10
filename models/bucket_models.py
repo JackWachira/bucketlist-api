@@ -1,10 +1,10 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-from flask.ext.restless import APIManager
 from config.config import DevelopmentConfig
-from flask_script import Manager
-from flask_migrate import Migrate, MigrateCommand
+from utils.utils import Utils
 import datetime
+# from marshmallow_jsonapi import Schema, fields
+from marshmallow import validate, Schema, fields, pre_load, post_load, post_dump
 
 # creates the flask app
 app = Flask(__name__)
@@ -16,10 +16,6 @@ app.config.from_object(DevelopmentConfig)
 
 # creates the database instance object
 db = SQLAlchemy(app)
-
-migrate = Migrate(app, db, "models/migrations")
-migrate_manager = Manager(app)
-migrate_manager.add_command('db', MigrateCommand)
 
 
 class BucketLists(db.Model):
@@ -41,11 +37,15 @@ class BucketLists(db.Model):
     # sets a predefined tablename
     __tablename__ = "bucketlists"
 
+    # print(current_time, file=sys.stderr)
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(20), nullable=False)
     created_by = db.Column(db.String(), db.ForeignKey('auth.id'))
-    date_created = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    date_modified = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    date_created = db.Column(db.DateTime, default=datetime.datetime.utcnow())
+    # date_created = db.Column(db.DateTime, default=current_time)
+    date_modified = db.Column(db.DateTime, default=db.func.current_timestamp(),
+                              onupdate=db.func.current_timestamp())
 
     items = db.relationship(
         'Items', backref='bucket', lazy='dynamic')
@@ -72,6 +72,47 @@ class BucketLists(db.Model):
         return '<Name %r>' % self.name
 
 
+class Date(fields.Field):
+    """Override marshmallow Date serialize method"""
+
+    def _serialize(self, value, attr, obj):
+        if value is None:
+            return None
+        try:
+            return value.strftime("%Y-%m-%d %H:%M:%S")
+        except AttributeError:
+            self.fail('format', input=value)
+        return value
+
+
+class ItemsSchema(Schema):
+    not_blank = validate.Length(min=1, error='Field cannot be blank')
+    id = fields.Integer(dump_only=True)
+    created_by = fields.String(validate=not_blank)
+    name = fields.String(validate=not_blank)
+    date_created = Date()
+    date_modified = Date()
+
+    class Meta:
+        type_ = 'items'
+        strict = True
+
+
+class BucketListsSchema(Schema):
+
+    not_blank = validate.Length(min=1, error='Field cannot be blank')
+    id = fields.Integer(dump_only=True)
+    created_by = fields.String(validate=not_blank)
+    name = fields.String(validate=not_blank)
+    date_created = Date()
+    date_modified = Date()
+    items = fields.Nested(ItemsSchema, many=True)
+
+    class Meta:
+        type_ = 'bucketlists'
+        strict = True
+
+
 class Items(db.Model):
     """
     BucketListItems model class
@@ -93,8 +134,8 @@ class Items(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(), nullable=False)
-    date_created = db.Column(db.DateTime)
-    date_modified = db.Column(db.DateTime)
+    date_created = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    date_modified = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     done = db.Column(db.Boolean)
     bid = db.Column(db.Integer, db.ForeignKey('bucketlists.id'))
 
@@ -156,11 +197,3 @@ class Auth(db.Model):
             The user's name as a String
         """
         return 'Name : %s ' % self.name
-
-manager = APIManager(app, flask_sqlalchemy_db=db)
-
-manager.create_api(
-    BucketLists, methods=['GET', 'POST', 'DELETE', 'PUT'], url_prefix='/v1')
-manager.create_api(
-    Items, methods=['POST', 'DELETE', 'PUT'], url_prefix='/v1')
-manager.create_api(Auth, methods=['GET'], url_prefix='/v1')

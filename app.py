@@ -1,6 +1,7 @@
 """Import statements."""
-from models.bucket_models import migrate_manager
+from resources.endpoints import app
 
 if __name__ == '__main__':
+    app.debug = True
     # run the flask app
-    migrate_manager.run()
+    app.run(debug=True)
