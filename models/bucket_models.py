@@ -3,7 +3,6 @@ from flask_sqlalchemy import SQLAlchemy
 from config.config import DevelopmentConfig
 from utils.utils import Utils
 import datetime
-# from marshmallow_jsonapi import Schema, fields
 from marshmallow import validate, Schema, fields, pre_load, post_load, post_dump
 
 # creates the flask app
@@ -18,7 +17,21 @@ app.config.from_object(DevelopmentConfig)
 db = SQLAlchemy(app)
 
 
-class BucketLists(db.Model):
+class DbOperations():
+
+    def add(self, resource):
+        db.session.add(resource)
+        return db.session.commit()
+
+    def update(self):
+        return db.session.commit()
+
+    def delete(self, resource):
+        db.session.delete(resource)
+        return db.session.commit()
+
+
+class BucketLists(db.Model, DbOperations):
     """
     BucketList model class
     Attributes:
@@ -41,7 +54,7 @@ class BucketLists(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(20), nullable=False)
-    created_by = db.Column(db.String(), db.ForeignKey('auth.id'))
+    created_by = db.Column(db.Integer, db.ForeignKey('auth.id'))
     date_created = db.Column(db.DateTime, default=datetime.datetime.utcnow())
     # date_created = db.Column(db.DateTime, default=current_time)
     date_modified = db.Column(db.DateTime, default=db.func.current_timestamp(),
@@ -102,8 +115,10 @@ class BucketListsSchema(Schema):
 
     not_blank = validate.Length(min=1, error='Field cannot be blank')
     id = fields.Integer(dump_only=True)
-    created_by = fields.String(validate=not_blank)
-    name = fields.String(validate=not_blank)
+    created_by = fields.Integer(
+        required=True, error_messages={'required': 'Created by is required'})
+    name = fields.String(
+        required=True, error_messages={'required': 'Name is required'})
     date_created = Date()
     date_modified = Date()
     items = fields.Nested(ItemsSchema, many=True)

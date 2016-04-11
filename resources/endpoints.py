@@ -1,9 +1,10 @@
-from flask import request
+from flask import request, jsonify
 from flask_restful import Resource, Api
-from models.bucket_models import app, BucketLists, BucketListsSchema
+from models.bucket_models import app, BucketLists, BucketListsSchema, db
+from sqlalchemy.exc import SQLAlchemyError
+from marshmallow import ValidationError
 
-
-api = Api(app)
+api = Api(app, prefix="/api/v1/")
 
 schema = BucketListsSchema()
 
@@ -19,8 +20,29 @@ class BucketList(Resource):
 
     def post(self):
         raw_dict = request.get_json(force=True)
+        try:
+           # Validate the data or raise a Validation error if
+           # incorrect
+            schema.validate(raw_dict)
+            # Create a User object with the API data recieved
+            bucketlist = BucketLists(
+                raw_dict['name'], raw_dict['created_by'])
+            # Commit data
+            bucketlist.add(bucketlist)
+            query = BucketLists.query.get(bucketlist.id)
+            results = schema.dump(query).data
+            return results, 201
 
-        return raw_dict
+        except ValidationError as err:
+            resp = jsonify({"error": err.messages})
+            resp.status_code = 403
+            return resp
+
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            resp = jsonify({"error": str(e)})
+            resp.status_code = 403
+            return resp
 
 
-api.add_resource(BucketList, '/v1/bucketlists/')
+api.add_resource(BucketList, 'bucketlists/')
