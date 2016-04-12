@@ -121,7 +121,7 @@ class BucketListItem(Resource):
             resp.status_code = 403
             return resp
 
-    def delete(self, bucket_id, item_id=0):
+    def delete(self, bucket_id, item_id):
         item = Items.query.get_or_404(item_id)
         try:
             item.delete(item)
@@ -133,6 +133,30 @@ class BucketListItem(Resource):
         except SQLAlchemyError as e:
             db.session.rollback()
             resp = jsonify({"error": str(e)})
+            resp.status_code = 401
+            return resp
+
+    def put(self, bucket_id, item_id):
+        if bucket_id != 0:
+            item = Items.query.get_or_404(item_id)
+            raw_dict = request.get_json(force=True)
+            try:
+                items_schema.validate(raw_dict)
+                for key, value in raw_dict.items():
+                    setattr(item, key, value)
+                item.update()
+                return items_schema.dump(item).data, 201
+            except ValidationError as err:
+                resp = jsonify({"error": err.messages})
+                resp.status_code = 401
+                return resp
+            except SQLAlchemyError as e:
+                db.session.rollback()
+                resp = jsonify({"error": str(e)})
+                resp.status_code = 401
+                return resp
+        else:
+            resp = jsonify({"error": "Item id missing"})
             resp.status_code = 401
             return resp
 
