@@ -1,5 +1,5 @@
 from flask import request, jsonify
-from flask_restful import Resource, Api
+from flask_restful import Resource, Api, abort
 from models.bucket_models import app, BucketLists, BucketListsSchema, db
 from sqlalchemy.exc import SQLAlchemyError
 from marshmallow import ValidationError
@@ -44,5 +44,29 @@ class BucketList(Resource):
             resp.status_code = 403
             return resp
 
+    def put(self, bucket_id=0):
+        if bucket_id != 0:
+            bucketlist = BucketLists.query.get_or_404(bucket_id)
+            raw_dict = request.get_json(force=True)
+            try:
+                schema.validate(raw_dict)
+                for key, value in raw_dict.items():
+                    setattr(bucketlist, key, value)
+                bucketlist.update()
+                return schema.dump(bucketlist).data, 201
+            except ValidationError as err:
+                resp = jsonify({"error": err.messages})
+                resp.status_code = 401
+                return resp
+            except SQLAlchemyError as e:
+                db.session.rollback()
+                resp = jsonify({"error": str(e)})
+                resp.status_code = 401
+                return resp
+        else:
+            resp = jsonify({"error": "Bucket id missing"})
+            resp.status_code = 401
+            return resp
 
-api.add_resource(BucketList, 'bucketlists/')
+
+api.add_resource(BucketList, 'bucketlists/', 'bucketlists/<bucket_id>')
