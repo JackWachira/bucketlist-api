@@ -101,8 +101,10 @@ class Date(fields.Field):
 class ItemsSchema(Schema):
     not_blank = validate.Length(min=1, error='Field cannot be blank')
     id = fields.Integer(dump_only=True)
-    created_by = fields.String(validate=not_blank)
-    name = fields.String(validate=not_blank)
+    name = fields.String(
+        required=True, error_messages={'required': 'Name is required'})
+    done = fields.Boolean(
+        required=True, error_messages={'required': 'Done is required'})
     date_created = Date()
     date_modified = Date()
 
@@ -128,7 +130,7 @@ class BucketListsSchema(Schema):
         strict = True
 
 
-class Items(db.Model):
+class Items(db.Model, DbOperations):
     """
     BucketListItems model class
     Attributes:
@@ -154,7 +156,7 @@ class Items(db.Model):
     done = db.Column(db.Boolean)
     bid = db.Column(db.Integer, db.ForeignKey('bucketlists.id'))
 
-    def __init__(self, name, done):
+    def __init__(self, name, done, bid):
         """
         Initialize a bucketlist item.
         Args:
@@ -164,6 +166,7 @@ class Items(db.Model):
         """
         self.name = name
         self.done = done
+        self.bid = bid
 
     def __repr__(self):
         """

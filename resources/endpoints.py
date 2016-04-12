@@ -1,12 +1,13 @@
 from flask import request, jsonify
 from flask_restful import Resource, Api, abort
-from models.bucket_models import app, BucketLists, BucketListsSchema, db
+from models.bucket_models import app, BucketLists, BucketListsSchema, db, Items, ItemsSchema
 from sqlalchemy.exc import SQLAlchemyError
 from marshmallow import ValidationError
 
 api = Api(app, prefix="/api/v1/")
 
-schema = BucketListsSchema()
+bucket_list_schema = BucketListsSchema()
+items_schema = ItemsSchema()
 
 
 class BucketList(Resource):
@@ -15,7 +16,7 @@ class BucketList(Resource):
 
         bucket_list_query = BucketLists.query.all()
         # Serialize the query results in the JSON API format
-        results = schema.dump(bucket_list_query, many=True).data
+        results = bucket_list_schema.dump(bucket_list_query, many=True).data
         return results
 
     def post(self):
@@ -23,14 +24,14 @@ class BucketList(Resource):
         try:
            # Validate the data or raise a Validation error if
            # incorrect
-            schema.validate(raw_dict)
+            bucket_list_schema.validate(raw_dict)
             # Create a User object with the API data recieved
             bucketlist = BucketLists(
                 raw_dict['name'], raw_dict['created_by'])
             # Commit data
             bucketlist.add(bucketlist)
             query = BucketLists.query.get(bucketlist.id)
-            results = schema.dump(query).data
+            results = bucket_list_schema.dump(query).data
             return results, 201
 
         except ValidationError as err:
@@ -49,11 +50,11 @@ class BucketList(Resource):
             bucketlist = BucketLists.query.get_or_404(bucket_id)
             raw_dict = request.get_json(force=True)
             try:
-                schema.validate(raw_dict)
+                bucket_list_schema.validate(raw_dict)
                 for key, value in raw_dict.items():
                     setattr(bucketlist, key, value)
                 bucketlist.update()
-                return schema.dump(bucketlist).data, 201
+                return bucket_list_schema.dump(bucketlist).data, 201
             except ValidationError as err:
                 resp = jsonify({"error": err.messages})
                 resp.status_code = 401
@@ -69,4 +70,36 @@ class BucketList(Resource):
             return resp
 
 
+class BucketListItem(Resource):
+    def post(self, bucket_id, item_id=0):
+        raw_dict = request.get_json(force=True)
+        print raw_dict
+        try:
+           # Validate the data or raise a Validation error if
+           # incorrect
+            items_schema.validate(raw_dict)
+            # Create a User object with the API data recieved
+            print raw_dict['done']
+            bucket_items = Items(
+                raw_dict['name'], raw_dict['done'], bucket_id)
+            # Commit data
+            bucket_items.add(bucket_items)
+            query = Items.query.get(bucket_items.id)
+            results = items_schema.dump(query).data
+            return results, 201
+
+        except ValidationError as err:
+            resp = jsonify({"error": err.messages})
+            resp.status_code = 403
+            return resp
+
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            resp = jsonify({"error": str(e)})
+            resp.status_code = 403
+            return resp
+
+
 api.add_resource(BucketList, 'bucketlists/', 'bucketlists/<bucket_id>')
+api.add_resource(BucketListItem, 'bucketlists/<bucket_id>/items/',
+                 'bucketlists/<bucket_id>/items/<item_id>')
