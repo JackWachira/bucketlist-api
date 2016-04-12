@@ -1,4 +1,4 @@
-from flask import request, jsonify
+from flask import request, jsonify, make_response
 from flask_restful import Resource, Api, abort
 from models.bucket_models import app, BucketLists, BucketListsSchema, db, Items, ItemsSchema
 from sqlalchemy.exc import SQLAlchemyError
@@ -69,6 +69,21 @@ class BucketList(Resource):
             resp.status_code = 401
             return resp
 
+    def delete(self, bucket_id=0):
+        bucket_list = BucketLists.query.get_or_404(bucket_id)
+        try:
+            bucket_list.delete(bucket_list)
+            response = make_response()
+            response.status_code = 204
+            response.message = "Deleted"
+            return response
+
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            resp = jsonify({"error": str(e)})
+            resp.status_code = 401
+            return resp
+
 
 class BucketListItem(Resource):
     def post(self, bucket_id, item_id=0):
@@ -97,6 +112,21 @@ class BucketListItem(Resource):
             db.session.rollback()
             resp = jsonify({"error": str(e)})
             resp.status_code = 403
+            return resp
+
+    def delete(self, bucket_id, item_id=0):
+        item = Items.query.get_or_404(item_id)
+        try:
+            item.delete(item)
+            response = make_response()
+            response.status_code = 204
+            response.message = "Deleted"
+            return response
+
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            resp = jsonify({"error": str(e)})
+            resp.status_code = 401
             return resp
 
 
