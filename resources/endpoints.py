@@ -12,14 +12,21 @@ items_schema = ItemsSchema()
 
 class BucketList(Resource):
 
-    def get(self):
+    def get(self, bucket_id=0):
+        if bucket_id == 0:
+            bucket_list_query = BucketLists.query.all()
+            # Serialize the query results in the JSON API format
+            results = bucket_list_schema.dump(
+                bucket_list_query, many=True).data
+        else:
+            bucket_list_query = BucketLists.query.get_or_404(bucket_id)
+            # Serialize the query results in the JSON API format
+            results = bucket_list_schema.dump(
+                bucket_list_query, many=False).data
 
-        bucket_list_query = BucketLists.query.all()
-        # Serialize the query results in the JSON API format
-        results = bucket_list_schema.dump(bucket_list_query, many=True).data
         return results
 
-    def post(self):
+    def post(self, bucket_id=0):
         raw_dict = request.get_json(force=True)
         try:
            # Validate the data or raise a Validation error if
