@@ -19,18 +19,28 @@ auth = HTTPBasicAuth()
 class BucketList(Resource):
 
     @auth.login_required
-    def get(self, bucket_id=0, limit=20, page=1):
+    def get(self, bucket_id=0):
+        search = False
         try:
             page = int(request.args.get('page'))
             limit = int(request.args.get('limit'))
         except:
             page = 1
             limit = 20
+        try:
+            q = request.args.get('q')
+            search = True
+        except:
+            search = False
 
         if bucket_id == 0:
-            # bucket_list_query = BucketLists.query.all()
-            record_query = BucketLists.query.paginate(
-                page, limit, False)
+            if search:
+                record_query = BucketLists.query.filter_by(
+                    name=q).paginate(
+                    page, limit, False)
+            else:
+                record_query = BucketLists.query.paginate(
+                    page, limit, False)
             # print record_query.items
             # Serialize the query results in the JSON API format
             # results = bucket_list_schema.dump(
@@ -233,10 +243,6 @@ class Login(Resource):
             return token, 201
         except ValidationError as err:
             resp = jsonify({"error": err.messages})
-            resp.status_code = 403
-            return resp
-        except IntegrityError as e:
-            resp = jsonify({"error": "The username is already taken"})
             resp.status_code = 403
             return resp
         except SQLAlchemyError as e:
