@@ -5,17 +5,11 @@ from utils.utils import Utils
 import datetime
 from marshmallow import validate, Schema, fields, pre_load, post_load, post_dump
 from passlib.apps import custom_app_context as pwd_context
-
-# creates the flask app
-app = Flask(__name__)
-
-# configures the app
-# app.config.from_pyfile('config.cfg')
-app.config.from_object(DevelopmentConfig)
-
+from itsdangerous import (TimedJSONWebSignatureSerializer
+                          as Serializer, BadSignature, SignatureExpired)
 
 # creates the database instance object
-db = SQLAlchemy(app)
+db = SQLAlchemy()
 
 
 class DbOperations():
@@ -180,12 +174,28 @@ class Items(db.Model, DbOperations):
         return '<Name %r>' % self.name
 
 
-class User(db.Model):
+class UsersSchema(Schema):
+
+    not_blank = validate.Length(min=1, error='Field cannot be blank')
+    id = fields.Integer(dump_only=True)
+    username = fields.String(
+        required=True, error_messages={'required': 'Username is required'})
+    password = fields.String(
+        required=True, error_messages={'required': 'Password is required'}, load_only=True)
+    date_created = fields.Date()
+    date_modified = fields.Date()
+
+    class Meta:
+        type_ = 'users'
+        strict = True
+
+
+class User(db.Model, DbOperations):
     """
     User model class
     Attributes:
         id: The id of the user.
-        name: The name of the user.
+        username: The name of the user.
 
     Methods:
         __init__: Initializes a new user.
@@ -196,17 +206,20 @@ class User(db.Model):
     __tablename__ = "user"
 
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(32))
+    username = db.Column(db.String(32), unique=True)
     password_hash = db.Column(db.String(128))
+    date_created = db.Column(db.DateTime, default=datetime.datetime.utcnow())
+    date_modified = db.Column(db.DateTime, default=db.func.current_timestamp(),
+                              onupdate=db.func.current_timestamp())
 
-    def __init__(self, name):
+    def __init__(self, username):
         """
         Initialize a user.
         Args:
            self
            name: Name of the user.
         """
-        self.name = name
+        self.username = username
 
     def __repr__(self):
         """
@@ -216,10 +229,26 @@ class User(db.Model):
         Returns:
             The user's name as a String
         """
-        return 'Name : %s ' % self.name
+        return 'Name : %s ' % self.username
 
     def hash_password(self, password):
         self.password_hash = pwd_context.encrypt(password)
 
     def verify_password(self, password):
         return pwd_context.verify(password, self.password_hash)
+
+    def generate_auth_token(self, expiration=30000000000):
+        s = Serializer(DevelopmentConfig.SECRET_KEY, expires_in=expiration)
+        return s.dumps({'id': self.id})
+
+    @staticmethod
+    def verify_auth_token(token):
+        s = Serializer(DevelopmentConfig.SECRET_KEY)
+        try:
+            data = s.loads(token)
+        except SignatureExpired:
+            return None    # valid token, but expired
+        except BadSignature:
+            return None    # invalid token
+        user = User.query.get(data['id'])
+        return user

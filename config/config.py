@@ -19,6 +19,7 @@ class DevelopmentConfig(BaseConfig):
     SQLALCHEMY_DATABASE_URI = 'sqlite:///' + \
         os.path.join(basedir, 'bucketlist.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SECRET_KEY = "ksdhfu344r324rd134"
 
 
 class TestingConfig(BaseConfig):

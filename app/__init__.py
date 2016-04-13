@@ -15,6 +15,6 @@ def create_app(configuration):
 
     # Blueprints
     from app.bucketlist.endpoints import bucket_list
-    app.register_blueprint(bucket_list, url_prefix='/api/v1/bucketlists')
+    app.register_blueprint(bucket_list, url_prefix='/api/v1')
 
     return app
