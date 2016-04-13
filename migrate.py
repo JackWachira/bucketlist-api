@@ -1,9 +1,13 @@
 from flask.ext.script import Manager
 from flask.ext.migrate import Migrate, MigrateCommand
-from models import db, app
+from app.bucketlist.models import db
+from run import app
+import os
+basedir = os.path.abspath(os.path.dirname(__file__))
 
+# migrate = Migrate(app, db, os.path.join(basedir, 'migrations'))
 
-migrate = Migrate(app, db, "/migrations")
+migrate = Migrate(app, db)
 
 manager = Manager(app)
 manager.add_command('db', MigrateCommand)

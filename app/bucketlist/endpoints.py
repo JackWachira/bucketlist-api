@@ -1,10 +1,13 @@
-from flask import request, jsonify, make_response
+from flask import Blueprint, request, jsonify, make_response
 from flask_restful import Resource, Api, abort
-from models.bucket_models import app, BucketLists, BucketListsSchema, db, Items, ItemsSchema
+from app.bucketlist.models import app, BucketLists, BucketListsSchema, db, Items, ItemsSchema
 from sqlalchemy.exc import SQLAlchemyError
 from marshmallow import ValidationError
 
-api = Api(app, prefix="/api/v1/")
+bucket_list = Blueprint('bucketlists', __name__)
+# api = Api(app, prefix="/api/v1/")
+
+api = Api(bucket_list)
 
 bucket_list_schema = BucketListsSchema()
 items_schema = ItemsSchema()
@@ -161,6 +164,9 @@ class BucketListItem(Resource):
             return resp
 
 
-api.add_resource(BucketList, 'bucketlists/', 'bucketlists/<bucket_id>')
-api.add_resource(BucketListItem, 'bucketlists/<bucket_id>/items/',
-                 'bucketlists/<bucket_id>/items/<item_id>')
+# api.add_resource(BucketList, 'bucketlists/', 'bucketlists/<bucket_id>')
+# api.add_resource(BucketListItem, 'bucketlists/<bucket_id>/items/',
+#                  'bucketlists/<bucket_id>/items/<item_id>')
+api.add_resource(BucketList, '/', '/<bucket_id>')
+api.add_resource(BucketListItem, '/<bucket_id>/items/',
+                 '/<bucket_id>/items/<item_id>')

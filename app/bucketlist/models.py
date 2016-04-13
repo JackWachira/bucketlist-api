@@ -4,6 +4,7 @@ from config.config import DevelopmentConfig
 from utils.utils import Utils
 import datetime
 from marshmallow import validate, Schema, fields, pre_load, post_load, post_dump
+from passlib.apps import custom_app_context as pwd_context
 
 # creates the flask app
 app = Flask(__name__)
@@ -54,7 +55,7 @@ class BucketLists(db.Model, DbOperations):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(20), nullable=False)
-    created_by = db.Column(db.Integer, db.ForeignKey('auth.id'))
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
     date_created = db.Column(db.DateTime, default=datetime.datetime.utcnow())
     # date_created = db.Column(db.DateTime, default=current_time)
     date_modified = db.Column(db.DateTime, default=db.func.current_timestamp(),
@@ -179,9 +180,9 @@ class Items(db.Model, DbOperations):
         return '<Name %r>' % self.name
 
 
-class Auth(db.Model):
+class User(db.Model):
     """
-    Auth model class
+    User model class
     Attributes:
         id: The id of the user.
         name: The name of the user.
@@ -192,10 +193,11 @@ class Auth(db.Model):
     """
 
     # sets a predefined tablename
-    __tablename__ = "auth"
+    __tablename__ = "user"
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(20))
+    username = db.Column(db.String(32))
+    password_hash = db.Column(db.String(128))
 
     def __init__(self, name):
         """
@@ -215,3 +217,9 @@ class Auth(db.Model):
             The user's name as a String
         """
         return 'Name : %s ' % self.name
+
+    def hash_password(self, password):
+        self.password_hash = pwd_context.encrypt(password)
+
+    def verify_password(self, password):
+        return pwd_context.verify(password, self.password_hash)
