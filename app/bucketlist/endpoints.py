@@ -1,74 +1,119 @@
-from flask import Blueprint, request, jsonify, make_response
-from flask_restful import Resource, Api, abort
+from flask import Blueprint, g, jsonify, make_response, request
+from flask_restful import Api, Resource
 from app.bucketlist.models import BucketLists, BucketListsSchema, db, Items, ItemsSchema, UsersSchema, User
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from marshmallow import ValidationError
 from flask.ext.httpauth import HTTPBasicAuth
-# from flask_httpauth import HTTPTokenAuth
+from flask_restful import reqparse
+
+# Define blueprint
 bucket_list = Blueprint('bucketlists', __name__)
 
+# Initialize flask application
 api = Api(bucket_list)
 
+# Define schemas for the models
 bucket_list_schema = BucketListsSchema()
 items_schema = ItemsSchema()
 users_schema = UsersSchema()
 
+# Initialize auth
 auth = HTTPBasicAuth()
 
 
 class BucketList(Resource):
+    """
+    Handles requests to bucketlists.
+
+    Resource urls:
+        '/bucketlists/'
+        '/bucketlists/<bucket_id>'
+
+    Requests Allowed:
+        'GET', 'POST', 'PUT', 'DELETE'
+    """
 
     @auth.login_required
     def get(self, bucket_id=0):
-        search = False
+        """
+        Queries bucketlists.
+
+        Args:
+            self,bucket_id
+
+        Return:
+            All or specific bucketlists belonging to the logged in user.
+        """
+
+        search = False  # Flag to determine whether to search.
+
+        # Get page and limit from request url.
         try:
             page = int(request.args.get('page'))
             limit = int(request.args.get('limit'))
         except:
             page = 1
             limit = 20
-        try:
-            q = request.args.get('q')
-            search = True
-        except:
-            search = False
 
-        if bucket_id == 0:
-            if search:
+        # Get search parameter from request.
+        q = request.args.get('q')
+        if q is not None:
+            search = True
+
+        if bucket_id == 0:  # Bucket id is not specified in request
+            if search:  # Search for specific bucket list for user
                 record_query = BucketLists.query.filter_by(
-                    name=q).paginate(
+                    name=q, created_by=g.user.id).paginate(
                     page, limit, False)
-            else:
-                record_query = BucketLists.query.paginate(
-                    page, limit, False)
-            # print record_query.items
+            else:  # Query all bucket lists for user
+                record_query = BucketLists.query.filter_by(
+                    created_by=g.user.id).paginate(page, limit, False)
+
             # Serialize the query results in the JSON API format
-            # results = bucket_list_schema.dump(
-            #     bucket_list_query, many=True).data
             results = bucket_list_schema.dump(
                 record_query.items, many=True).data
-        else:
+
+        else:  # Bucket id is specified in request
             bucket_list_query = BucketLists.query.get_or_404(bucket_id)
+            if bucket_list_query.created_by == g.user.id:
+                # return results if they were created by user else return error message
+                results = bucket_list_schema.dump(
+                    bucket_list_query, many=False).data
+            else:
+                return {"message": "Unauthorized"}, 401
             # Serialize the query results in the JSON API format
-            results = bucket_list_schema.dump(
-                bucket_list_query, many=False).data
+
 
         return results
 
     @auth.login_required
     def post(self, bucket_id=0):
-        raw_dict = request.get_json(force=True)
+        """
+        Creates bucketlists.
+
+        Args:
+            self, bucket_id
+
+        Return:
+            Creates a bucket for a logged in user
+        """
+
+        # parse incoming request data
+        parser = reqparse.RequestParser()
+        parser.add_argument('name')
+        args = parser.parse_args()
+        name = args['name']
+
         try:
-           # Validate the data or raise a Validation error if
-           # incorrect
-            bucket_list_schema.validate(raw_dict)
+           # Validate the data or raise a Validation error if incorrect
+            bucket_list_schema.validate(args)
             # Create a BucketList object with the API data recieved
             bucketlist = BucketLists(
-                raw_dict['name'], raw_dict['created_by'])
+                name, g.user.id)
             # Commit data
             bucketlist.add(bucketlist)
-            query = BucketLists.query.get(bucketlist.id)
-            results = bucket_list_schema.dump(query).data
+            # Serialize the query results in the JSON API format
+            results = bucket_list_schema.dump(bucketlist).data
             return results, 201
 
         except ValidationError as err:
@@ -84,14 +129,33 @@ class BucketList(Resource):
 
     @auth.login_required
     def put(self, bucket_id=0):
+        """
+        Updates bucketlists.
+
+        Args:
+            self, bucket_id
+
+        Return:
+            Updated bucket list for a logged in user
+        """
+        # Bucket id not supplied
         if bucket_id != 0:
+            # query for bucket list by its id
             bucketlist = BucketLists.query.get_or_404(bucket_id)
-            raw_dict = request.get_json(force=True)
+
+            # parse incoming request data
+            parser = reqparse.RequestParser()
+            parser.add_argument('name')
+            args = parser.parse_args()
+
             try:
-                bucket_list_schema.validate(raw_dict)
-                for key, value in raw_dict.items():
+                # Validate the data or raise a Validation error if incorrect
+                bucket_list_schema.validate(args)
+                # Set BucketList object values with the API data recieved
+                for key, value in args.items():
                     setattr(bucketlist, key, value)
                 bucketlist.update()
+                # Serialize the query results in the JSON API format
                 return bucket_list_schema.dump(bucketlist).data, 201
             except ValidationError as err:
                 resp = jsonify({"error": err.messages})
@@ -109,6 +173,13 @@ class BucketList(Resource):
 
     @auth.login_required
     def delete(self, bucket_id=0):
+        """
+        Deletes a bucketlist.
+
+        Args:
+            self, bucket_id
+
+        """
         bucket_list = BucketLists.query.get_or_404(bucket_id)
         try:
             bucket_list.delete(bucket_list)
@@ -125,23 +196,48 @@ class BucketList(Resource):
 
 
 class BucketListItem(Resource):
+    """
+    Handles requests to bucketlist items.
 
+    Resource urls:
+        '/bucketlists/<bucket_id>/items/'
+        '/bucketlists/<bucket_id>/items/<item_id>'
+
+    Requests Allowed:
+        'POST', 'PUT', 'DELETE'
+    """
     @auth.login_required
     def post(self, bucket_id, item_id=0):
-        raw_dict = request.get_json(force=True)
-        print raw_dict
+        """
+        Creates bucketlist items.
+
+        Args:
+            self, bucket_id, item_id
+
+        Return:
+            Creates a bucket item for a logged in user
+        """
+
+        # parse incoming request data
+        parser = reqparse.RequestParser()
+        parser.add_argument('name')
+        parser.add_argument('done')
+        args = parser.parse_args()
+        name = args['name']
+        done = args['done']
+
         try:
-           # Validate the data or raise a Validation error if
-           # incorrect
-            items_schema.validate(raw_dict)
+            # Validate the data or raise a Validation error if incorrect
+            items_schema.validate(args)
+
             # Create a User object with the API data recieved
-            print raw_dict['done']
             bucket_items = Items(
-                raw_dict['name'], raw_dict['done'], bucket_id)
+                name, bool(done), bucket_id)
             # Commit data
             bucket_items.add(bucket_items)
-            query = Items.query.get(bucket_items.id)
-            results = items_schema.dump(query).data
+
+            # Serialize the query results in the JSON API format
+            results = items_schema.dump(bucket_items).data
             return results, 201
 
         except ValidationError as err:
@@ -157,7 +253,13 @@ class BucketListItem(Resource):
 
     @auth.login_required
     def delete(self, bucket_id, item_id):
-        item = Items.query.get_or_404(item_id)
+        """
+        Deletes a bucketlist item.
+
+        Args:
+            self, bucket_id, item_id
+        """
+        item = Items.query.get_or_404(item_id) # get the item by id
         try:
             item.delete(item)
             response = make_response()
@@ -173,13 +275,33 @@ class BucketListItem(Resource):
 
     @auth.login_required
     def put(self, bucket_id, item_id):
+        """
+        Updates bucketlist item.
+
+        Args:
+            self, bucket_id, item_id
+
+        Return:
+            Updated bucket item for a logged in user
+        """
+        # bucket id is not specified
         if bucket_id != 0:
+            # query for specific item by id
             item = Items.query.get_or_404(item_id)
-            raw_dict = request.get_json(force=True)
+
+            # parse incoming request data
+            parser = reqparse.RequestParser()
+            parser.add_argument('name')
+            parser.add_argument('done')
+            args = parser.parse_args()
+
             try:
-                items_schema.validate(raw_dict)
-                for key, value in raw_dict.items():
-                    setattr(item, key, value)
+                # Validate the data or raise a Validation error if incorrect
+                items_schema.validate(args)
+                item.done=bool(args['done'])
+                item.name=name=args['name']
+                # for key, value in args.items():
+                #     setattr(item, key, value)
                 item.update()
                 return items_schema.dump(item).data, 201
             except ValidationError as err:
@@ -198,17 +320,43 @@ class BucketListItem(Resource):
 
 
 class Register(Resource):
+    """
+    Handles register requests.
 
+    Resource url:
+        '/auth/register'
+
+    Requests Allowed:
+        'POST'
+    """
     def post(self):
-        raw_dict = request.get_json(force=True)
+        """
+        Register a user.
+
+        Args:
+            self
+
+        Returns:
+            A 201 status code user created.
+
+        Raises:
+            401 error when invalid credentials given
+        """
+
+        # parse incoming request data
+        parser = reqparse.RequestParser()
+        parser.add_argument('username')
+        parser.add_argument('password')
+        args = parser.parse_args()
+        username = args['username']
+        password = args['password']
+
         try:
-            users_schema.validate(raw_dict)
-            user = User(username=raw_dict['username'])
-            user.hash_password(raw_dict['password'])
+            users_schema.validate(args)
+            user = User(args['username'])
+            user.hash_password(args['password'])
             user.add(user)
-            query = User.query.get(user.id)
-            print query
-            results = items_schema.dump(query).data
+            results = items_schema.dump(user).data
             return results, 201
         except ValidationError as err:
             resp = jsonify({"error": err.messages})
@@ -216,7 +364,7 @@ class Register(Resource):
             return resp
         except IntegrityError as e:
             resp = jsonify({"error": "The username is already taken"})
-            resp.status_code = 403
+            resp.status_code = 401
             return resp
         except SQLAlchemyError as e:
             db.session.rollback()
@@ -226,40 +374,73 @@ class Register(Resource):
 
 
 class Login(Resource):
+    """
+    Handles login requests.
 
+    Resource url:
+        '/auth/login'
+
+    Requests Allowed:
+        'POST'
+    """
     def post(self):
-        raw_dict = request.get_json(force=True)
-        try:
-            # users_schema.validate(raw_dict)
-            # user = User(username=raw_dict['username'])
-            user = User.query.filter_by(username=raw_dict['username']).first()
-            if user.verify_password(raw_dict['password']):
-                token = user.generate_auth_token()
+        """
+        Login a user.
 
-            # user.add(user)
-            # query = User.query.get_or_404(user.id)
-            # print query
-            # results = items_schema.dump(query).data
-            return token, 201
+        Args:
+            self
+
+        Returns:
+            A token to be used to authenticate requests.
+
+        Raises:
+            401 error when invalid credentials given
+        """
+
+        # parse incoming request data
+        parser = reqparse.RequestParser()
+        parser.add_argument('username')
+        parser.add_argument('password')
+        args = parser.parse_args()
+        username = args['username']
+        password = args['password']
+
+        try:
+            user = User.query.filter_by(username=username).first()
+            if user.verify_password(password):
+                token = user.generate_auth_token()
+            return {"token":token}, 201
         except ValidationError as err:
             resp = jsonify({"error": err.messages})
-            resp.status_code = 403
+            resp.status_code = 401
             return resp
         except SQLAlchemyError as e:
             db.session.rollback()
             resp = jsonify({"error": str(e)})
-            resp.status_code = 403
+            resp.status_code = 401
             return resp
 
 
 @auth.verify_password
 def verify_password(token, password):
+    """
+    Verifies if token is valid
+
+    Args:
+        token: The token generated
+        password: (optional) The users password
+
+    Returns:
+        True if user exists and token is valid
+        False if user is nonexistent or token is invalid
+    """
+
     token = request.headers.get('token')
     if token is None:
         return False
     # first try to authenticate by token
     user = User.verify_auth_token(token)
-    print user
+    g.user = user
     if not user:
         # try to authenticate with username / password
         user = User.query.filter_by(username=token).first()
@@ -267,28 +448,10 @@ def verify_password(token, password):
             return False
     return True
 
-
-# def authenticate(func):
-#     @auth.verify_token
-#     def verify_token(token):
-#         return True
-#     return verify_token
-
-
-class Stuff(Resource):
-
-    @auth.login_required
-    def post(self):
-        return "haha"
-
-
-# api.add_resource(BucketList, 'bucketlists/', 'bucketlists/<bucket_id>')
-# api.add_resource(BucketListItem, 'bucketlists/<bucket_id>/items/',
-#                  'bucketlists/<bucket_id>/items/<item_id>')
+# ADD RESOURCES TO API OBJECT
 api.add_resource(BucketList, '/bucketlists/',
                  '/bucketlists/<bucket_id>')
 api.add_resource(BucketListItem, '/bucketlists/<bucket_id>/items/',
                  '/bucketlists/<bucket_id>/items/<item_id>')
 api.add_resource(Register, '/auth/register/')
 api.add_resource(Login, '/auth/login/')
-api.add_resource(Stuff, '/auth/stuff/')

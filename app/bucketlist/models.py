@@ -112,8 +112,7 @@ class BucketListsSchema(Schema):
 
     not_blank = validate.Length(min=1, error='Field cannot be blank')
     id = fields.Integer(dump_only=True)
-    created_by = fields.Integer(
-        required=True, error_messages={'required': 'Created by is required'})
+    created_by = fields.Integer()
     name = fields.String(
         required=True, error_messages={'required': 'Name is required'})
     date_created = Date()
