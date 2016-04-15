@@ -5,7 +5,7 @@ python:
 branches:
   only:
     - master
-    - feature-api
+    - feature-review
 
 # command to install dependencies
 install:
