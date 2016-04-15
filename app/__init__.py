@@ -1,5 +1,5 @@
 from flask import Flask, Response
-from app.bucketlist.models import db
+from bucketlist.models import db
 
 
 class MyResponse(Response):
@@ -14,7 +14,7 @@ def create_app(configuration):
     db.init_app(app)
 
     # Blueprints
-    from app.bucketlist.endpoints import bucket_list
+    from app.bucketlist.resources import bucket_list
     app.register_blueprint(bucket_list, url_prefix='/api/v1')
 
     return app
