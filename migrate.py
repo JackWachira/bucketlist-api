@@ -1,6 +1,6 @@
 from flask.ext.script import Manager
 from flask.ext.migrate import Migrate, MigrateCommand
-from app.bucketlist.models import db
+from app.models.models import db
 from run import app
 import os
 basedir = os.path.abspath(os.path.dirname(__file__))

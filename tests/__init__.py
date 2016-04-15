@@ -1,13 +1,13 @@
 """Import statements."""
 import nose
 from flask_testing import TestCase
-from app.bucketlist.models import db, User
+from app.models.models import db, User
 from app import create_app
 from config.config import TestingConfig
 
 
-
 app = create_app(TestingConfig)
+
 
 class BaseTestCase(TestCase):
     """Base configurations for the tests."""

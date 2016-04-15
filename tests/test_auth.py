@@ -1,6 +1,6 @@
 import json
 from nose.tools import *
-from app.bucketlist.resources import api, Login, Register
+from app.resources.resources import api, Login, Register
 from tests import BaseTestCase
 
 

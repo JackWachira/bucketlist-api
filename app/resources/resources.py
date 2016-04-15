@@ -1,6 +1,6 @@
 from flask import Blueprint, g, jsonify, request
 from flask_restful import Api, Resource
-from app.bucketlist.models import BucketLists, BucketListsSchema, db, Items, ItemsSchema, UsersSchema, User
+from app.models.models import BucketLists, BucketListsSchema, db, Items, ItemsSchema, UsersSchema, User
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from marshmallow import ValidationError
 from flask.ext.httpauth import HTTPBasicAuth
