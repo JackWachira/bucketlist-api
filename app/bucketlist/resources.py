@@ -76,15 +76,15 @@ class BucketList(Resource):
         else:  # Bucket id is specified in request
             bucket_list_query = BucketLists.query.get_or_404(bucket_id)
             if bucket_list_query.created_by == g.user.id:
-                # return results if they were created by user else return error message
+                # return results if they were created by user else return error
+                # message
                 results = bucket_list_schema.dump(
                     bucket_list_query, many=False).data
             else:
                 return {"message": "Unauthorized"}, 401
             # Serialize the query results in the JSON API format
 
-
-        return results
+        return results, 200
 
     @auth.login_required
     def post(self, bucket_id=0):
@@ -107,7 +107,7 @@ class BucketList(Resource):
         try:
            # Validate the data or raise a Validation error if incorrect
             bucket_list_schema.validate(args)
-            # Create a BucketList object with the API data recieved
+            # Create a BucketList with the API data recieved
             bucketlist = BucketLists(
                 name, g.user.id)
             # Commit data
@@ -156,7 +156,7 @@ class BucketList(Resource):
                     setattr(bucketlist, key, value)
                 bucketlist.update()
                 # Serialize the query results in the JSON API format
-                return bucket_list_schema.dump(bucketlist).data, 201
+                return bucket_list_schema.dump(bucketlist).data, 200
             except ValidationError as err:
                 resp = jsonify({"error": err.messages})
                 resp.status_code = 401
@@ -178,15 +178,14 @@ class BucketList(Resource):
 
         Args:
             self, bucket_id
-
+        Return:
+            Delete successfully message
         """
         bucket_list = BucketLists.query.get_or_404(bucket_id)
         try:
             bucket_list.delete(bucket_list)
-            response = make_response()
-            response.status_code = 204
-            response.message = "Deleted"
-            return response
+            return jsonify({'message': 'Bucketlist ' + bucket_id +
+                            ' deleted successfully.'})
 
         except SQLAlchemyError as e:
             db.session.rollback()
@@ -229,8 +228,10 @@ class BucketListItem(Resource):
         try:
             # Validate the data or raise a Validation error if incorrect
             items_schema.validate(args)
+            # Check if bucket list exists
+            BucketLists.query.get_or_404(bucket_id)
 
-            # Create a User object with the API data recieved
+            # Create a Bucket item object with the API data recieved
             bucket_items = Items(
                 name, bool(done), bucket_id)
             # Commit data
@@ -258,14 +259,15 @@ class BucketListItem(Resource):
 
         Args:
             self, bucket_id, item_id
+
+        Return:
+           Delete successfully message
         """
-        item = Items.query.get_or_404(item_id) # get the item by id
+        item = Items.query.get_or_404(item_id)  # get the item by id
         try:
             item.delete(item)
-            response = make_response()
-            response.status_code = 204
-            response.message = "Deleted"
-            return response
+            return jsonify({'message': 'Bucketlist item ' + item_id +
+                            ' deleted successfully.'})
 
         except SQLAlchemyError as e:
             db.session.rollback()
@@ -298,12 +300,10 @@ class BucketListItem(Resource):
             try:
                 # Validate the data or raise a Validation error if incorrect
                 items_schema.validate(args)
-                item.done=bool(args['done'])
-                item.name=name=args['name']
-                # for key, value in args.items():
-                #     setattr(item, key, value)
+                item.done = bool(args['done'])
+                item.name = args['name']
                 item.update()
-                return items_schema.dump(item).data, 201
+                return items_schema.dump(item).data, 200
             except ValidationError as err:
                 resp = jsonify({"error": err.messages})
                 resp.status_code = 401
@@ -329,6 +329,7 @@ class Register(Resource):
     Requests Allowed:
         'POST'
     """
+
     def post(self):
         """
         Register a user.
@@ -383,6 +384,7 @@ class Login(Resource):
     Requests Allowed:
         'POST'
     """
+
     def post(self):
         """
         Login a user.
@@ -409,7 +411,7 @@ class Login(Resource):
             user = User.query.filter_by(username=username).first()
             if user.verify_password(password):
                 token = user.generate_auth_token()
-            return {"token":token}, 201
+            return {"token": token}, 201
         except ValidationError as err:
             resp = jsonify({"error": err.messages})
             resp.status_code = 401

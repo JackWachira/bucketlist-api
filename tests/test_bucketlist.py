@@ -1,39 +1,129 @@
 import json
 from nose.tools import *
-from app.bucketlist.resources import BucketList,Login
+from app.bucketlist.resources import api, BucketList, Login
 from tests import BaseTestCase
 
-class TestBucketListOperations(BaseTestCase):
+
+class TestAuthorizedBucketListOperations(BaseTestCase):
 
     def login(self):
         username = "testuser"
         password = "testpassword"
 
         response = self.client.post(
-                                    api.url_for(Login),
-                                    data=json.dumps(
-                                            {'username': username,
-                                             'password': password
-                                             }),
-                                    content_type='application/json'
-                                    )
+            api.url_for(Login),
+            data=json.dumps(
+                {'username': username,
+                 'password': password
+                 }),
+            content_type='application/json'
+        )
         return response
 
     def test_create_bucketlist(self):
-        """Test that a user can create bucketlist."""
+        """Test that a user can create a new bucketlist."""
         response = self.login()
         message = json.loads(response.data)
         token = message['token']
 
         # create a test Bucketlist
         response = self.client.post(
-                         api.url_for(BucketList),
-                         data=json.dumps({"name": "testbucket"}),
-                         content_type='application/json',
-                         headers={'token': token}
-                         )
+            api.url_for(BucketList),
+            data=json.dumps({"name": "testbucket"}),
+            content_type='application/json',
+            headers={'token': token}
+        )
 
         # test bucketlist was created
         self.assertEqual(response.status_code, 201)
         data = json.loads(response.data)
         self.assertIn("testbucket", data['name'])
+
+    def test_list_bucketlists(self):
+        """Test that a user can list all bucketlists."""
+        response = self.login()
+        message = json.loads(response.data)
+        token = message['token']
+
+        # create a test Bucketlist
+        self.client.post(
+            api.url_for(BucketList),
+            data=json.dumps({"name": "testbucket"}),
+            content_type='application/json',
+            headers={'token': token}
+        )
+
+        # list all bucketlists
+        bucketlists = self.client.get(api.url_for(BucketList),
+                                      content_type='application/json',
+                                      headers={'token': token})
+
+        self.assertEqual(bucketlists.status_code, 200)
+        self.assertTrue(bucketlists)
+        self.assertIn("testbucket", bucketlists.data)
+
+    def test_update_bucketlists(self):
+        """Test that a user can update a certain bucketlist."""
+        response = self.login()
+        message = json.loads(response.data)
+        token = message['token']
+
+        # create a test Bucketlist
+        self.client.post(
+            api.url_for(BucketList),
+            data=json.dumps({"name": "testbucket"}),
+            content_type='application/json',
+            headers={'token': token}
+        )
+
+        # assert testbucket is created
+        bucketlists = self.client.get(api.url_for(BucketList),
+                                      content_type='application/json',
+                                      headers={'token': token})
+
+        self.assertEqual(bucketlists.status_code, 200)
+        self.assertIn("testbucket", bucketlists.data)
+
+        # update the bucketlist
+        updated_bucketlist = self.client.put(
+            api.url_for(BucketList, bucket_id=1),
+            data=json.dumps({"name": "testbucketupdated"}),
+            content_type='application/json',
+            headers={'token': token}
+        )
+
+        # assert bucketlist is updated
+        self.assertEqual(updated_bucketlist.status_code, 200)
+        self.assertIn("testbucketupdated", updated_bucketlist.data)
+
+    def test_delete_bucketlists(self):
+        """Test that a user can update a certain bucketlist."""
+        response = self.login()
+        message = json.loads(response.data)
+        token = message['token']
+
+        # create a test Bucketlist
+        self.client.post(
+            api.url_for(BucketList),
+            data=json.dumps({"name": "testbucket"}),
+            content_type='application/json',
+            headers={'token': token}
+        )
+
+        # assert testbucket is created
+        bucketlists = self.client.get(api.url_for(BucketList),
+                                      content_type='application/json',
+                                      headers={'token': token})
+
+        self.assertEqual(bucketlists.status_code, 200)
+        self.assertIn("testbucket", bucketlists.data)
+
+        # delete the bucketlist
+        response = self.client.delete(
+            api.url_for(BucketList, bucket_id=1),
+            content_type='application/json',
+            headers={'token': token}
+        )
+
+        # assert bucketlist is deleted
+        self.assertIn("Bucketlist 1 deleted successfully.", response.data)

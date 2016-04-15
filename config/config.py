@@ -27,7 +27,8 @@ class TestingConfig(BaseConfig):
 
     DEBUG = True
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///models/memory'
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///memory'
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 
 class ProductionConfig(BaseConfig):
