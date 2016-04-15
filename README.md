@@ -1,5 +1,5 @@
-[![Build Status](https://travis-ci.org/andela-jmwangi/bucketlist-api.svg?branch=master)](https://travis-ci.org/andela-jmwangi/bucketlist-api)
-[![Coverage Status](https://coveralls.io/repos/github/andela-jmwangi/bucketlist-api/badge.svg?branch=master)](https://coveralls.io/github/andela-jmwangi/bucketlist-api?branch=master)
+[![Build Status](https://travis-ci.org/andela-jmwangi/bucketlist-api.svg?branch=feature-review)](https://travis-ci.org/andela-jmwangi/bucketlist-api)
+[![Coverage Status](https://coveralls.io/repos/github/andela-jmwangi/bucketlist-api/badge.svg?branch=feature-review)](https://coveralls.io/github/andela-jmwangi/bucketlist-api?branch=feature-review)
 
 # Bucketlist API
 
@@ -66,7 +66,10 @@ In the project root folder, follow the following instructions:
 
   3. Run `pip install -r requirements.txt` to install all relevant dependencies.
 
-  4. Run the command `python run.py` to start the server. The application will
+  4. Run the command `python dbinit.py` to create the database with dummy users
+   and data.
+
+  5. Run the command `python run.py` to start the server. The application will
   then be live at **http://localhost:5000/**
 
 # Testing
