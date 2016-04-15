@@ -1,9 +1,7 @@
-from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from config.config import DevelopmentConfig
-from utils.utils import Utils
 import datetime
-from marshmallow import validate, Schema, fields, pre_load, post_load, post_dump
+from marshmallow import validate, Schema, fields
 from passlib.apps import custom_app_context as pwd_context
 from itsdangerous import (TimedJSONWebSignatureSerializer
                           as Serializer, BadSignature, SignatureExpired)
@@ -13,6 +11,14 @@ db = SQLAlchemy()
 
 
 class DbOperations():
+    """
+    Class to do database operations
+
+    Methods:
+        add:    Saves a record to database.
+        update: Updates a record in the database.
+        delete: Deletes a record in the database.
+    """
 
     def add(self, resource):
         db.session.add(resource)
@@ -51,7 +57,6 @@ class BucketLists(db.Model, DbOperations):
     name = db.Column(db.String(20), nullable=False)
     created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
     date_created = db.Column(db.DateTime, default=datetime.datetime.utcnow())
-    # date_created = db.Column(db.DateTime, default=current_time)
     date_modified = db.Column(db.DateTime, default=db.func.current_timestamp(),
                               onupdate=db.func.current_timestamp())
 
@@ -84,6 +89,9 @@ class Date(fields.Field):
     """Override marshmallow Date serialize method"""
 
     def _serialize(self, value, attr, obj):
+        """
+        Serialize a datetime.date object to a formatted string
+        """
         if value is None:
             return None
         try:
@@ -94,6 +102,16 @@ class Date(fields.Field):
 
 
 class ItemsSchema(Schema):
+    """
+    Class for serializing and deserializing Items model class
+
+    Attributes:
+        id: The id of the bucketlist item.
+        name: The name of the bucketlist item.
+        date_created: The date the bucketlist item was created.
+        date_modified: The date the bucketlist item was modified.
+        done: Boolean to indicate whether the item has been completed or not.
+    """
     not_blank = validate.Length(min=1, error='Field cannot be blank')
     id = fields.Integer(dump_only=True)
     name = fields.String(
@@ -104,12 +122,29 @@ class ItemsSchema(Schema):
     date_modified = Date()
 
     class Meta:
-        type_ = 'items'
+        """
+        Options object for a Schema.
+
+        Available options:
+        - ``strict``: If `True`, raise errors during marshalling rather than
+            storing them.
+        -
+        """
         strict = True
 
 
 class BucketListsSchema(Schema):
+    """
+    Class for serializing and deserializing BucketList model class
 
+    Attributes:
+        id: The id of the bucketlist.
+        name: The name of the BucketList.
+        date_created: The date the bucketlist was created.
+        date_modified: The date the bucketlist was modified.
+        created_by: The ID of the creator(user) of the bucketlist.
+        items: Items in the bucketlist
+    """
     not_blank = validate.Length(min=1, error='Field cannot be blank')
     id = fields.Integer(dump_only=True)
     created_by = fields.Integer()
@@ -120,7 +155,14 @@ class BucketListsSchema(Schema):
     items = fields.Nested(ItemsSchema, many=True)
 
     class Meta:
-        type_ = 'bucketlists'
+        """
+        Options object for a Schema.
+
+        Available options:
+        - ``strict``: If `True`, raise errors during marshalling rather than
+            storing them.
+        -
+        """
         strict = True
 
 
@@ -231,17 +273,41 @@ class User(db.Model, DbOperations):
         return 'Name : %s ' % self.username
 
     def hash_password(self, password):
+        """
+        Encrypts password
+        Args:
+            self, password
+        """
         self.password_hash = pwd_context.encrypt(password)
 
     def verify_password(self, password):
+        """
+        Verifies password
+        Args:
+            self, password
+        """
         return pwd_context.verify(password, self.password_hash)
 
-    def generate_auth_token(self, expiration=30000000000):
+    def generate_auth_token(self, expiration=3000):
+        """
+        Generates auth token
+        Args:
+            self, expiration
+        Returns:
+            The authentication token
+        """
         s = Serializer(DevelopmentConfig.SECRET_KEY, expires_in=expiration)
         return s.dumps({'id': self.id})
 
     @staticmethod
     def verify_auth_token(token):
+        """
+        Verifies auth token
+        Args:
+            token
+        Returns:
+            A user object
+        """
         s = Serializer(DevelopmentConfig.SECRET_KEY)
         try:
             data = s.loads(token)

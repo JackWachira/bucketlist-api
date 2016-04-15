@@ -1,4 +1,4 @@
-from flask import Blueprint, g, jsonify, make_response, request
+from flask import Blueprint, g, jsonify, request
 from flask_restful import Api, Resource
 from app.bucketlist.models import BucketLists, BucketListsSchema, db, Items, ItemsSchema, UsersSchema, User
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -151,7 +151,7 @@ class BucketList(Resource):
         Return:
             Updated bucket list for a logged in user
         """
-        # Bucket id not supplied
+
         if bucket_id != 0:
             # query for bucket list by its id
             bucketlist = BucketLists.query.get_or_404(bucket_id)

@@ -1,5 +1,6 @@
 [![Build Status](https://travis-ci.org/andela-jmwangi/bucketlist-api.svg?branch=feature-review)](https://travis-ci.org/andela-jmwangi/bucketlist-api)
 [![Coverage Status](https://coveralls.io/repos/github/andela-jmwangi/bucketlist-api/badge.svg?branch=feature-review)](https://coveralls.io/github/andela-jmwangi/bucketlist-api?branch=feature-review)
+[![Code Health](https://landscape.io/github/andela-jmwangi/bucketlist-api/feature-review/landscape.svg?style=flat)](https://landscape.io/github/andela-jmwangi/bucketlist-api/feature-review)
 
 # Bucketlist API
 
@@ -58,7 +59,7 @@ name=MyBucketList
 
 # Set up
 
-In the project root folder, follow the following instructions:
+Clone the repository and do the following from the root folder:
 
   1. Create a virtual environment by running the command `virtualenv env`.
 
@@ -66,8 +67,11 @@ In the project root folder, follow the following instructions:
 
   3. Run `pip install -r requirements.txt` to install all relevant dependencies.
 
-  4. Run the command `python dbinit.py` to create the database with dummy users
-   and data.
+  4. Initialise database migrations by running `python migrate.py db init`
+
+  5. Migrate the database by running `python migrate.py db migrate`
+
+  6. Upgrade by running `python migrate.py db upgrade`
 
   5. Run the command `python run.py` to start the server. The application will
   then be live at **http://localhost:5000/**

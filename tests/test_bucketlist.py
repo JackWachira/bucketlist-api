@@ -241,23 +241,3 @@ class TestErrorsBucketListOperations(BaseTestCase):
         self.assertEqual(response.status_code, 400)
         data = json.loads(response.data)
         self.assertIn("Field may not be null.", data['error']['name'][0])
-
-    # def test_create_bucketlist_with_wong_data_type(self):
-    #     """Test that a user cannot create a new bucketlist with missing params."""
-    #     response = self.login()
-    #     message = json.loads(response.data)
-    #     token = message['token']
-
-    # create a test Bucketlist
-    #     response = self.client.post(
-    #         api.url_for(BucketList),
-    #         data=json.dumps({"name": True}),
-    #         content_type='application/json',
-    #         headers={'token': token}
-    #     )
-
-    # test bucketlist was not created
-    #     self.assertEqual(response.status_code, 400)
-    #     data = json.loads(response.data)
-    #     print data
-    #     self.assertIn("Field may not be null.", data['name'])

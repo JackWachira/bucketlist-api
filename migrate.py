@@ -5,8 +5,6 @@ from run import app
 import os
 basedir = os.path.abspath(os.path.dirname(__file__))
 
-# migrate = Migrate(app, db, os.path.join(basedir, 'migrations'))
-
 migrate = Migrate(app, db)
 
 manager = Manager(app)
