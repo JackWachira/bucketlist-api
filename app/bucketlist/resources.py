@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from marshmallow import ValidationError
 from flask.ext.httpauth import HTTPBasicAuth
 from flask_restful import reqparse
+from functools import wraps
 
 # Define blueprint
 bucket_list = Blueprint('bucketlists', __name__)
@@ -19,6 +20,28 @@ users_schema = UsersSchema()
 
 # Initialize auth
 auth = HTTPBasicAuth()
+
+
+def handle_exceptions(f):
+    """Decorator to handle Validation and SQLAlchemyErrors"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except ValidationError as err:
+            resp = jsonify({"error": err.messages})
+            resp.status_code = 400
+            return resp
+        except IntegrityError as e:
+            resp = jsonify({"error": "The username is already taken"})
+            resp.status_code = 401
+            return resp
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            resp = jsonify({"error": str(e)})
+            resp.status_code = 400
+            return resp
+    return decorated
 
 
 class BucketList(Resource):
@@ -86,6 +109,7 @@ class BucketList(Resource):
 
         return results, 200
 
+    @handle_exceptions
     @auth.login_required
     def post(self, bucket_id=0):
         """
@@ -104,30 +128,19 @@ class BucketList(Resource):
         args = parser.parse_args()
         name = args['name']
 
-        try:
-           # Validate the data or raise a Validation error if incorrect
-            bucket_list_schema.validate(args)
-            # Create a BucketList with the API data recieved
-            bucketlist = BucketLists(
-                name, g.user.id)
-            # Commit data
-            bucketlist.add(bucketlist)
-            # Serialize the query results in the JSON API format
-            results = bucket_list_schema.dump(bucketlist).data
-            return results, 201
-
-        except ValidationError as err:
-            resp = jsonify({"error": err.messages})
-            resp.status_code = 403
-            return resp
-
-        except SQLAlchemyError as e:
-            db.session.rollback()
-            resp = jsonify({"error": str(e)})
-            resp.status_code = 403
-            return resp
+       # Validate the data or raise a Validation error if incorrect
+        bucket_list_schema.validate(args)
+        # Create a BucketList with the API data recieved
+        bucketlist = BucketLists(
+            name, g.user.id)
+        # Commit data
+        bucketlist.add(bucketlist)
+        # Serialize the query results in the JSON API format
+        results = bucket_list_schema.dump(bucketlist).data
+        return results, 201
 
     @auth.login_required
+    @handle_exceptions
     def put(self, bucket_id=0):
         """
         Updates bucketlists.
@@ -148,30 +161,22 @@ class BucketList(Resource):
             parser.add_argument('name')
             args = parser.parse_args()
 
-            try:
-                # Validate the data or raise a Validation error if incorrect
-                bucket_list_schema.validate(args)
-                # Set BucketList object values with the API data recieved
-                for key, value in args.items():
-                    setattr(bucketlist, key, value)
-                bucketlist.update()
-                # Serialize the query results in the JSON API format
-                return bucket_list_schema.dump(bucketlist).data, 200
-            except ValidationError as err:
-                resp = jsonify({"error": err.messages})
-                resp.status_code = 401
-                return resp
-            except SQLAlchemyError as e:
-                db.session.rollback()
-                resp = jsonify({"error": str(e)})
-                resp.status_code = 401
-                return resp
+            # Validate the data or raise a Validation error if incorrect
+            bucket_list_schema.validate(args)
+            # Set BucketList object values with the API data recieved
+            for key, value in args.items():
+                setattr(bucketlist, key, value)
+            bucketlist.update()
+            # Serialize the query results in the JSON API format
+            return bucket_list_schema.dump(bucketlist).data, 200
+
         else:
             resp = jsonify({"error": "Bucket id missing"})
             resp.status_code = 401
             return resp
 
     @auth.login_required
+    @handle_exceptions
     def delete(self, bucket_id=0):
         """
         Deletes a bucketlist.
@@ -182,16 +187,9 @@ class BucketList(Resource):
             Delete successfully message
         """
         bucket_list = BucketLists.query.get_or_404(bucket_id)
-        try:
-            bucket_list.delete(bucket_list)
-            return jsonify({'message': 'Bucketlist ' + bucket_id +
-                            ' deleted successfully.'})
-
-        except SQLAlchemyError as e:
-            db.session.rollback()
-            resp = jsonify({"error": str(e)})
-            resp.status_code = 401
-            return resp
+        bucket_list.delete(bucket_list)
+        return jsonify({'message': 'Bucketlist ' + bucket_id +
+                        ' deleted successfully.'})
 
 
 class BucketListItem(Resource):
@@ -206,6 +204,7 @@ class BucketListItem(Resource):
         'POST', 'PUT', 'DELETE'
     """
     @auth.login_required
+    @handle_exceptions
     def post(self, bucket_id, item_id=0):
         """
         Creates bucketlist items.
@@ -225,34 +224,23 @@ class BucketListItem(Resource):
         name = args['name']
         done = args['done']
 
-        try:
-            # Validate the data or raise a Validation error if incorrect
-            items_schema.validate(args)
-            # Check if bucket list exists
-            BucketLists.query.get_or_404(bucket_id)
+        # Validate the data or raise a Validation error if incorrect
+        items_schema.validate(args)
+        # Check if bucket list exists
+        BucketLists.query.get_or_404(bucket_id)
 
-            # Create a Bucket item object with the API data recieved
-            bucket_items = Items(
-                name, bool(done), bucket_id)
-            # Commit data
-            bucket_items.add(bucket_items)
+        # Create a Bucket item object with the API data recieved
+        bucket_items = Items(
+            name, bool(done), bucket_id)
+        # Commit data
+        bucket_items.add(bucket_items)
 
-            # Serialize the query results in the JSON API format
-            results = items_schema.dump(bucket_items).data
-            return results, 201
-
-        except ValidationError as err:
-            resp = jsonify({"error": err.messages})
-            resp.status_code = 403
-            return resp
-
-        except SQLAlchemyError as e:
-            db.session.rollback()
-            resp = jsonify({"error": str(e)})
-            resp.status_code = 403
-            return resp
+        # Serialize the query results in the JSON API format
+        results = items_schema.dump(bucket_items).data
+        return results, 201
 
     @auth.login_required
+    @handle_exceptions
     def delete(self, bucket_id, item_id):
         """
         Deletes a bucketlist item.
@@ -264,18 +252,12 @@ class BucketListItem(Resource):
            Delete successfully message
         """
         item = Items.query.get_or_404(item_id)  # get the item by id
-        try:
-            item.delete(item)
-            return jsonify({'message': 'Bucketlist item ' + item_id +
-                            ' deleted successfully.'})
-
-        except SQLAlchemyError as e:
-            db.session.rollback()
-            resp = jsonify({"error": str(e)})
-            resp.status_code = 401
-            return resp
+        item.delete(item)
+        return jsonify({'message': 'Bucketlist item ' + item_id +
+                        ' deleted successfully.'})
 
     @auth.login_required
+    @handle_exceptions
     def put(self, bucket_id, item_id):
         """
         Updates bucketlist item.
@@ -287,36 +269,22 @@ class BucketListItem(Resource):
             Updated bucket item for a logged in user
         """
         # bucket id is not specified
-        if bucket_id != 0:
-            # query for specific item by id
-            item = Items.query.get_or_404(item_id)
 
-            # parse incoming request data
-            parser = reqparse.RequestParser()
-            parser.add_argument('name')
-            parser.add_argument('done')
-            args = parser.parse_args()
+        # query for specific item by id
+        item = Items.query.get_or_404(item_id)
 
-            try:
-                # Validate the data or raise a Validation error if incorrect
-                items_schema.validate(args)
-                item.done = bool(args['done'])
-                item.name = args['name']
-                item.update()
-                return items_schema.dump(item).data, 200
-            except ValidationError as err:
-                resp = jsonify({"error": err.messages})
-                resp.status_code = 401
-                return resp
-            except SQLAlchemyError as e:
-                db.session.rollback()
-                resp = jsonify({"error": str(e)})
-                resp.status_code = 401
-                return resp
-        else:
-            resp = jsonify({"error": "Item id missing"})
-            resp.status_code = 401
-            return resp
+        # parse incoming request data
+        parser = reqparse.RequestParser()
+        parser.add_argument('name')
+        parser.add_argument('done')
+        args = parser.parse_args()
+
+        # Validate the data or raise a Validation error if incorrect
+        items_schema.validate(args)
+        item.done = bool(args['done'])
+        item.name = args['name']
+        item.update()
+        return items_schema.dump(item).data, 200
 
 
 class Register(Resource):
@@ -352,26 +320,12 @@ class Register(Resource):
         username = args['username']
         password = args['password']
 
-        try:
-            users_schema.validate(args)
-            user = User(args['username'])
-            user.hash_password(args['password'])
-            user.add(user)
-            results = items_schema.dump(user).data
-            return results, 201
-        except ValidationError as err:
-            resp = jsonify({"error": err.messages})
-            resp.status_code = 403
-            return resp
-        except IntegrityError as e:
-            resp = jsonify({"error": "The username is already taken"})
-            resp.status_code = 401
-            return resp
-        except SQLAlchemyError as e:
-            db.session.rollback()
-            resp = jsonify({"error": str(e)})
-            resp.status_code = 403
-            return resp
+        users_schema.validate(args)
+        user = User(username)
+        user.hash_password(password)
+        user.add(user)
+        results = items_schema.dump(user).data
+        return results, 201
 
 
 class Login(Resource):
@@ -407,20 +361,12 @@ class Login(Resource):
         username = args['username']
         password = args['password']
 
-        try:
-            user = User.query.filter_by(username=username).first()
+        user = User.query.filter_by(username=username).first()
+        if user:
             if user.verify_password(password):
                 token = user.generate_auth_token()
-            return {"token": token}, 201
-        except ValidationError as err:
-            resp = jsonify({"error": err.messages})
-            resp.status_code = 401
-            return resp
-        except SQLAlchemyError as e:
-            db.session.rollback()
-            resp = jsonify({"error": str(e)})
-            resp.status_code = 401
-            return resp
+            return {"token": token}, 200
+        return {"error": "Incorrect Login credentials"}, 400
 
 
 @auth.verify_password
@@ -449,6 +395,7 @@ def verify_password(token, password):
         if not user or not user.verify_password(password):
             return False
     return True
+
 
 # ADD RESOURCES TO API OBJECT
 api.add_resource(BucketList, '/bucketlists/',
