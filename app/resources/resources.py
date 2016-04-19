@@ -6,6 +6,8 @@ from marshmallow import ValidationError
 from flask.ext.httpauth import HTTPBasicAuth
 from flask_restful import reqparse
 from functools import wraps
+import pprint
+from flask.ext.restful import inputs
 
 # Define blueprint
 bucket_list = Blueprint('bucketlists', __name__)
@@ -33,13 +35,26 @@ def handle_exceptions(f):
             resp.status_code = 400
             return resp
         except IntegrityError as e:
-            resp = jsonify({"error": "The username is already taken"})
+            resp = jsonify({"error": e.message})
             resp.status_code = 401
             return resp
         except SQLAlchemyError as e:
             db.session.rollback()
             resp = jsonify({"error": str(e)})
             resp.status_code = 400
+            return resp
+    return decorated
+
+
+def handle_register(f):
+    """Decorator to handle Validation error during Registering"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except IntegrityError:
+            resp = jsonify({"error": "The username is already taken"})
+            resp.status_code = 401
             return resp
     return decorated
 
@@ -92,9 +107,30 @@ class BucketList(Resource):
                 record_query = BucketLists.query.filter_by(
                     created_by=g.user.id).paginate(page, limit, False)
 
+            current_url = request.url
+            next_url, prev_url = "", ""
+
+            if record_query.has_next:
+                next_page = record_query.next_num
+                items = record_query.per_page
+                next_url = str(current_url[0:current_url.rindex('/')]) + \
+                    "?page=%s&limit=%s" % (str(next_page), str(items))
+
+            if record_query.has_prev:
+                prev_page = record_query.prev_num
+                items = record_query.per_page
+                prev_url = str(current_url[0:current_url.rindex('/')]) + \
+                    "?page=%s&limit=%s" % (str(prev_page), str(items))
+
             # Serialize the query results in the JSON API format
             results = bucket_list_schema.dump(
                 record_query.items, many=True).data
+
+            # results with paging
+            if len(results) > 0:
+                results = {"data": results, "paging":
+                           {"previous": prev_url, "next": next_url,
+                            "pageNum": page, "count": len(record_query.items)}}
 
         else:  # Bucket id is specified in request
             bucket_list_query = BucketLists.query.get_or_404(bucket_id)
@@ -107,7 +143,9 @@ class BucketList(Resource):
                 return {"message": "Unauthorized"}, 401
             # Serialize the query results in the JSON API format
 
-        return results, 200
+        if len(results) > 0:
+            return results, 200
+        return "No data found", 404
 
     @handle_exceptions
     @auth.login_required
@@ -275,14 +313,16 @@ class BucketListItem(Resource):
 
         # parse incoming request data
         parser = reqparse.RequestParser()
-        parser.add_argument('name')
-        parser.add_argument('done')
+        parser.add_argument('name', type=str, help='Name should be a string')
+        parser.add_argument(
+            'done', type=inputs.boolean, help='Done should be boolean')
         args = parser.parse_args()
 
-        # Validate the data or raise a Validation error if incorrect
-        items_schema.validate(args)
-        item.done = bool(args['done'])
-        item.name = args['name']
+        if args['name'] is not None:
+            item.name = args['name']
+        if args['done'] is not None:
+            item.done = args['done']
+
         item.update()
         return items_schema.dump(item).data, 200
 
@@ -297,7 +337,7 @@ class Register(Resource):
     Requests Allowed:
         'POST'
     """
-
+    @handle_register
     def post(self):
         """
         Register a user.
@@ -338,7 +378,7 @@ class Login(Resource):
     Requests Allowed:
         'POST'
     """
-
+    @handle_exceptions
     def post(self):
         """
         Login a user.
@@ -365,7 +405,7 @@ class Login(Resource):
         if user:
             if user.verify_password(password):
                 token = user.generate_auth_token()
-            return {"token": token}, 200
+            return {"Authorization": token}, 200
         return {"error": "Incorrect Login credentials"}, 400
 
 
@@ -383,7 +423,7 @@ def verify_password(token, password):
         False if user is nonexistent or token is invalid
     """
 
-    token = request.headers.get('token')
+    token = request.headers.get('Authorization')
     if token is None:
         return False
     # first try to authenticate by token
