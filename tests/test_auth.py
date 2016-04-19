@@ -38,7 +38,7 @@ class TestAuthentication(BaseTestCase):
         """Test that a user can login successfully"""
         response = self.login_correct()
         message = json.loads(response.data)
-        token = message['token']
+        token = message['Authorization']
 
         # check if token received
         self.assertTrue(token)
@@ -73,7 +73,7 @@ class TestAuthentication(BaseTestCase):
         )
 
         message = json.loads(response.data)
-        token = message['token']
+        token = message['Authorization']
 
         # check if token received
         self.assertTrue(token)

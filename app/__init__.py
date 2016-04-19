@@ -1,5 +1,8 @@
 from flask import Flask, Response
 from models.models import db
+from flask.ext.compress import Compress
+
+compress = Compress()
 
 
 class MyResponse(Response):
@@ -17,4 +20,6 @@ def create_app(configuration):
     from app.resources.resources import bucket_list
     app.register_blueprint(bucket_list, url_prefix='/api/v1')
 
+    # Gzip response
+    compress.init_app(app)
     return app

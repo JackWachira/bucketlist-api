@@ -2,7 +2,7 @@ from flask_sqlalchemy import SQLAlchemy
 from config.config import DevelopmentConfig
 import datetime
 from marshmallow import validate, Schema, fields
-from passlib.apps import custom_app_context as pwd_context
+from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import (TimedJSONWebSignatureSerializer
                           as Serializer, BadSignature, SignatureExpired)
 
@@ -86,7 +86,12 @@ class BucketLists(db.Model, DbOperations):
 
 
 class Date(fields.Field):
-    """Override marshmallow Date serialize method"""
+    """
+    Overrides Marshmallow Date serialize method
+
+    Return:
+        All or specific bucketlists belonging to the logged in user.
+    """
 
     def _serialize(self, value, attr, obj):
         """
@@ -134,6 +139,7 @@ class ItemsSchema(Schema):
 
 
 class BucketListsSchema(Schema):
+
     """
     Class for serializing and deserializing BucketList model class
 
@@ -278,7 +284,7 @@ class User(db.Model, DbOperations):
         Args:
             self, password
         """
-        self.password_hash = pwd_context.encrypt(password)
+        self.password_hash = generate_password_hash(password)
 
     def verify_password(self, password):
         """
@@ -286,7 +292,7 @@ class User(db.Model, DbOperations):
         Args:
             self, password
         """
-        return pwd_context.verify(password, self.password_hash)
+        return check_password_hash(self.password_hash, password)
 
     def generate_auth_token(self, expiration=3000):
         """

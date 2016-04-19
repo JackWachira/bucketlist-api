@@ -24,14 +24,14 @@ class TestAuthorizedBucketListItemsOperations(BaseTestCase):
         """Test that a user can create a new bucketlist item."""
         response = self.login()
         message = json.loads(response.data)
-        token = message['token']
+        token = message['Authorization']
 
         # create a test Bucketlist
         self.client.post(
             api.url_for(BucketList),
             data=json.dumps({"name": "testbucket"}),
             content_type='application/json',
-            headers={'token': token}
+            headers={'Authorization': token}
         )
 
         # create a test Bucketlist item
@@ -39,7 +39,7 @@ class TestAuthorizedBucketListItemsOperations(BaseTestCase):
             api.url_for(BucketListItem, bucket_id=1),
             data=json.dumps({"name": "testbucketitem", "done": "false"}),
             content_type='application/json',
-            headers={'token': token}
+            headers={'Authorization': token}
         )
 
         # test bucketlist item was created
@@ -51,14 +51,14 @@ class TestAuthorizedBucketListItemsOperations(BaseTestCase):
         """Test that a user can update a certain bucketlist item."""
         response = self.login()
         message = json.loads(response.data)
-        token = message['token']
+        token = message['Authorization']
 
         # create a test Bucketlist
         self.client.post(
             api.url_for(BucketList),
             data=json.dumps({"name": "testbucket"}),
             content_type='application/json',
-            headers={'token': token}
+            headers={'Authorization': token}
         )
 
         # create a test Bucketlist item
@@ -66,7 +66,7 @@ class TestAuthorizedBucketListItemsOperations(BaseTestCase):
             api.url_for(BucketListItem, bucket_id=1),
             data=json.dumps({"name": "testbucketitem", "done": "false"}),
             content_type='application/json',
-            headers={'token': token}
+            headers={'Authorization': token}
         )
 
         # test bucketlist item was created
@@ -80,7 +80,7 @@ class TestAuthorizedBucketListItemsOperations(BaseTestCase):
             data=json.dumps(
                 {"name": "testbucketitemupdated", "done": "false"}),
             content_type='application/json',
-            headers={'token': token}
+            headers={'Authorization': token}
         )
 
         # assert bucketlist item is updated
@@ -91,20 +91,20 @@ class TestAuthorizedBucketListItemsOperations(BaseTestCase):
         """Test that a user can delete a certain bucketlist item."""
         response = self.login()
         message = json.loads(response.data)
-        token = message['token']
+        token = message['Authorization']
 
         # create a test Bucketlist
         self.client.post(
             api.url_for(BucketList),
             data=json.dumps({"name": "testbucket"}),
             content_type='application/json',
-            headers={'token': token}
+            headers={'Authorization': token}
         )
 
         # assert testbucket is created
         bucketlists = self.client.get(api.url_for(BucketList),
                                       content_type='application/json',
-                                      headers={'token': token})
+                                      headers={'Authorization': token})
 
         self.assertEqual(bucketlists.status_code, 200)
         self.assertIn("testbucket", bucketlists.data)
@@ -114,7 +114,7 @@ class TestAuthorizedBucketListItemsOperations(BaseTestCase):
             api.url_for(BucketListItem, bucket_id=1),
             data=json.dumps({"name": "testbucketitem", "done": "false"}),
             content_type='application/json',
-            headers={'token': token}
+            headers={'Authorization': token}
         )
 
         # test bucketlist item was created
@@ -126,7 +126,7 @@ class TestAuthorizedBucketListItemsOperations(BaseTestCase):
         response = self.client.delete(
             api.url_for(BucketListItem, bucket_id=1, item_id=1),
             content_type='application/json',
-            headers={'token': token}
+            headers={'Authorization': token}
         )
 
         # assert bucketlist item is deleted

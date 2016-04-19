@@ -24,14 +24,14 @@ class TestAuthorizedBucketListOperations(BaseTestCase):
         """Test that a user can create a new bucketlist."""
         response = self.login()
         message = json.loads(response.data)
-        token = message['token']
+        token = message['Authorization']
 
         # create a test Bucketlist
         response = self.client.post(
             api.url_for(BucketList),
             data=json.dumps({"name": "testbucket"}),
             content_type='application/json',
-            headers={'token': token}
+            headers={'Authorization': token}
         )
 
         # test bucketlist was created
@@ -43,20 +43,20 @@ class TestAuthorizedBucketListOperations(BaseTestCase):
         """Test that a user can list all bucketlists."""
         response = self.login()
         message = json.loads(response.data)
-        token = message['token']
+        token = message['Authorization']
 
         # create a test Bucketlist
         self.client.post(
             api.url_for(BucketList),
             data=json.dumps({"name": "testbucket"}),
             content_type='application/json',
-            headers={'token': token}
+            headers={'Authorization': token}
         )
 
         # list all bucketlists
         bucketlists = self.client.get(api.url_for(BucketList, page=1, limit=2),
                                       content_type='application/json',
-                                      headers={'token': token})
+                                      headers={'Authorization': token})
 
         self.assertEqual(bucketlists.status_code, 200)
         self.assertTrue(bucketlists)
@@ -66,19 +66,19 @@ class TestAuthorizedBucketListOperations(BaseTestCase):
         """Test that a user can search and list bucketlists"""
         response = self.login()
         message = json.loads(response.data)
-        token = message['token']
+        token = message['Authorization']
 
         # create a test Bucketlist
         self.client.post(
             api.url_for(BucketList),
             data=json.dumps({"name": "testbucket"}),
             content_type='application/json',
-            headers={'token': token}
+            headers={'Authorization': token}
         )
 
         # list bucketlists with search
         bucketlists = self.client.get(api.url_for(
-            BucketList, q='testbucket', page=1, limit=2), content_type='application/json', headers={'token': token})
+            BucketList, q='testbucket', page=1, limit=2), content_type='application/json', headers={'Authorization': token})
 
         self.assertEqual(bucketlists.status_code, 200)
         self.assertTrue(bucketlists)
@@ -88,20 +88,20 @@ class TestAuthorizedBucketListOperations(BaseTestCase):
         """Test that a user can get a single bucketlist."""
         response = self.login()
         message = json.loads(response.data)
-        token = message['token']
+        token = message['Authorization']
 
         # create a test Bucketlist
         self.client.post(
             api.url_for(BucketList),
             data=json.dumps({"name": "testbucket"}),
             content_type='application/json',
-            headers={'token': token}
+            headers={'Authorization': token}
         )
 
         # get a single bucket list
         bucketlists = self.client.get(api.url_for(BucketList, bucket_id=1),
                                       content_type='application/json',
-                                      headers={'token': token})
+                                      headers={'Authorization': token})
 
         self.assertEqual(bucketlists.status_code, 200)
         self.assertIn("testbucket", bucketlists.data)
@@ -110,20 +110,20 @@ class TestAuthorizedBucketListOperations(BaseTestCase):
         """Test that a user can update a certain bucketlist."""
         response = self.login()
         message = json.loads(response.data)
-        token = message['token']
+        token = message['Authorization']
 
         # create a test Bucketlist
         self.client.post(
             api.url_for(BucketList),
             data=json.dumps({"name": "testbucket"}),
             content_type='application/json',
-            headers={'token': token}
+            headers={'Authorization': token}
         )
 
         # assert testbucket is created
         bucketlists = self.client.get(api.url_for(BucketList),
                                       content_type='application/json',
-                                      headers={'token': token})
+                                      headers={'Authorization': token})
 
         self.assertEqual(bucketlists.status_code, 200)
         self.assertIn("testbucket", bucketlists.data)
@@ -133,7 +133,7 @@ class TestAuthorizedBucketListOperations(BaseTestCase):
             api.url_for(BucketList, bucket_id=1),
             data=json.dumps({"name": "testbucketupdated"}),
             content_type='application/json',
-            headers={'token': token}
+            headers={'Authorization': token}
         )
 
         # assert bucketlist is updated
@@ -144,20 +144,20 @@ class TestAuthorizedBucketListOperations(BaseTestCase):
         """Test that a user can update a certain bucketlist."""
         response = self.login()
         message = json.loads(response.data)
-        token = message['token']
+        token = message['Authorization']
 
         # create a test Bucketlist
         self.client.post(
             api.url_for(BucketList),
             data=json.dumps({"name": "testbucket"}),
             content_type='application/json',
-            headers={'token': token}
+            headers={'Authorization': token}
         )
 
         # assert testbucket is created
         bucketlists = self.client.get(api.url_for(BucketList),
                                       content_type='application/json',
-                                      headers={'token': token})
+                                      headers={'Authorization': token})
 
         self.assertEqual(bucketlists.status_code, 200)
         self.assertIn("testbucket", bucketlists.data)
@@ -166,7 +166,7 @@ class TestAuthorizedBucketListOperations(BaseTestCase):
         response = self.client.delete(
             api.url_for(BucketList, bucket_id=1),
             content_type='application/json',
-            headers={'token': token}
+            headers={'Authorization': token}
         )
 
         # assert bucketlist is deleted
@@ -197,12 +197,12 @@ class TestUnauthorizedBucketListOperations(BaseTestCase):
             api.url_for(BucketList),
             data=json.dumps({"name": "testbucket"}),
             content_type='application/json',
-            headers={'token': token}
+            headers={'Authorization': token}
         )
 
         # list bucketlists with search
         bucketlists = self.client.get(api.url_for(
-            BucketList, q='testbucket', page=1, limit=2), content_type='application/json', headers={'token': token})
+            BucketList, q='testbucket', page=1, limit=2), content_type='application/json', headers={'Authorization': token})
 
         self.assertEqual(bucketlists.status_code, 401)
 
@@ -226,7 +226,7 @@ class TestErrorsBucketListOperations(BaseTestCase):
         """Test that a user cannot create a new bucketlist with missing params."""
         response = self.login()
         message = json.loads(response.data)
-        token = message['token']
+        token = message['Authorization']
 
         # create a test Bucketlist
         response = self.client.post(
@@ -234,7 +234,7 @@ class TestErrorsBucketListOperations(BaseTestCase):
             # wrong param 'something'
             data=json.dumps({"something": "testbucket"}),
             content_type='application/json',
-            headers={'token': token}
+            headers={'Authorization': token}
         )
 
         # test bucketlist was not created
