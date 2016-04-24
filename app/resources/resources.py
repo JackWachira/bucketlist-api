@@ -88,9 +88,12 @@ class BucketList(Resource):
         # Get page and limit from request url.
         try:
             page = int(request.args.get('page'))
-            limit = int(request.args.get('limit'))
         except:
             page = 1
+
+        try:
+            limit = int(request.args.get('limit'))
+        except:
             limit = 20
 
         # Get search parameter from request.
@@ -160,13 +163,11 @@ class BucketList(Resource):
             Creates a bucket for a logged in user
         """
 
-        # parse incoming request data
         parser = reqparse.RequestParser()
         parser.add_argument('name')
         args = parser.parse_args()
         name = args['name']
 
-       # Validate the data or raise a Validation error if incorrect
         bucket_list_schema.validate(args)
         # Create a BucketList with the API data recieved
         bucketlist = BucketLists(

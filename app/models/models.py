@@ -51,8 +51,6 @@ class BucketLists(db.Model, DbOperations):
     # sets a predefined tablename
     __tablename__ = "bucketlists"
 
-    # print(current_time, file=sys.stderr)
-
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(20), nullable=False)
     created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
